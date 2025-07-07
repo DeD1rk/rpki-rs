@@ -377,6 +377,13 @@ impl Cert {
     pub fn inspect_ee(&self, strict: bool) -> Result<(), InspectionError> {
         self.inspect_basics(strict)?;
         self.inspect_issued(strict)?;
+        
+        // 4.7 Subject Public Key Info: limited algorithms.
+        if !self.subject_public_key_info().allow_rpki_ee_cert() {
+            return Err(InspectionError::new(
+                "public key algorithm not allowed for RPKI EE certificates"
+            ))
+        }
 
         // 4.8.1. Basic Constraints: Must not be present.
         if self.basic_ca.is_some(){
@@ -797,11 +804,8 @@ impl Cert {
         // 4.6 Validity. Checked during verification.
 
         // 4.7 Subject Public Key Info: limited algorithms.
-        if !self.subject_public_key_info().allow_rpki_cert() {
-            return Err(InspectionError::new(
-                "public key algorithm not allowed for RPKI certificates"
-            ))
-        }
+        // With the null scheme, this differs between CA and EE certs, so is checked in
+        // inspect_ca_basics() and inspect_ee().
 
         // 4.8.1. Basic Constraints. Differing requirements for CA and EE
         // certificates.
@@ -871,6 +875,13 @@ impl Cert {
         &self,
         _strict: bool
     ) -> Result<(), InspectionError> {
+        // 4.7 Subject Public Key Info: limited algorithms.
+        if !self.subject_public_key_info().allow_rpki_ca_cert() {
+            return Err(InspectionError::new(
+                "public key algorithm not allowed for RPKI CA certificates"
+            ))
+        }
+
         // 4.8.1. Basic Constraints: For a CA it must be present (RFC6487)
         // und the “cA” flag must be set (RFC5280).
         match self.basic_ca() {

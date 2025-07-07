@@ -13,6 +13,7 @@ use ring::{digest, signature};
 use ring::error::Unspecified;
 use ring::signature::VerificationAlgorithm;
 use untrusted::Input;
+use crate::crypto::DigestAlgorithm;
 use crate::oid;
 #[cfg(feature = "serde")] use crate::util::base64;
 use crate::util::hex;
@@ -41,16 +42,25 @@ pub enum PublicKeyFormat {
     ///
     /// These keys must be used by all BGPSec router certificates.
     EcdsaP256,
+
+    /// A null scheme public key, i.e. a digest of a signed object.
+    /// 
+    /// This is defined roughly in chapter 5 of Dirk Doesburg's MSc thesis 
+    /// "Post-Quantum Cryptography for the RPKI".
+    NullSchemeSha256,
 }
 
 impl PublicKeyFormat {
-    /// Returns whether the format is acceptable for RPKI-internal certificates.
-    ///
-    /// RPKI-internal certificates in this context are those used within the
-    /// repository itself, i.e., CA certificates and EE certificates for
-    /// signed objects.
-    pub fn allow_rpki_cert(self) -> bool {
+    /// Returns whether the format is acceptable for RPKI-internal CA certificates.
+    pub fn allow_rpki_ca_cert(self) -> bool {
         matches!(self, PublicKeyFormat::Rsa)
+    }
+
+    /// Returns whether the format is acceptable for RPKI-internal EE certificates.
+    /// 
+    /// These EE certificates are the ones used in RFC6488 signed objects.
+    pub fn allow_rpki_ee_cert(self) -> bool {
+        matches!(self, PublicKeyFormat::Rsa | PublicKeyFormat::NullSchemeSha256)
     }
 
     /// Returns whether the format is acceptable for router certificates.
@@ -108,6 +118,9 @@ impl PublicKeyFormat{
             oid::SECP256R1.skip_if(cons)?;
             Ok(PublicKeyFormat::EcdsaP256)
         }
+        else if alg == oid::NULL_SCHEME_WITH_SHA256 {
+            Ok(PublicKeyFormat::NullSchemeSha256)
+        }
         else {
             Err(cons.content_err("invalid public key format"))
         }
@@ -117,7 +130,7 @@ impl PublicKeyFormat{
     pub fn encode(self) -> impl encode::Values {
         match self {
             PublicKeyFormat::Rsa => {
-                encode::Choice2::One(
+                encode::Choice3::One(
                     encode::sequence((
                         oid::RSA_ENCRYPTION.encode(),
                         ().encode(),
@@ -125,10 +138,17 @@ impl PublicKeyFormat{
                 )
             }
             PublicKeyFormat::EcdsaP256 => {
-                encode::Choice2::Two(
+                encode::Choice3::Two(
                     encode::sequence((
                         oid::EC_PUBLIC_KEY.encode(),
                         oid::SECP256R1.encode(),
+                    ))
+                )
+            }
+            PublicKeyFormat::NullSchemeSha256 => {
+                encode::Choice3::Three(
+                    encode::sequence((
+                        oid::NULL_SCHEME_WITH_SHA256.encode(),
                     ))
                 )
             }
@@ -151,6 +171,18 @@ impl PublicKeyFormat{
                 signature::ECDSA_P256_SHA256_ASN1.verify(
                     bits, message, signature
                 ).map_err(Into::into)
+            }
+            PublicKeyFormat::NullSchemeSha256 => {
+                if signature.len() != 0 {
+                    // The signature must be empty for the null scheme.
+                    return Err(SignatureVerificationError(()));
+                }
+                let digest = DigestAlgorithm::sha256().digest(message.as_slice_less_safe());
+                // Compare the message digest with the public key.
+                if digest.as_ref() != bits.as_slice_less_safe() {
+                    return Err(SignatureVerificationError(()));
+                }
+                Ok(())
             }
         }
     }
@@ -230,6 +262,19 @@ impl PublicKey {
         })
     }
     
+    /// Createa a null scheme public key based on the message to be signed.
+    /// 
+    /// This creates the SHA256 digest of the input bytes, similar to what is done
+    /// as part of the RsaSha256 verification/signing process.
+    /// So the input should be the output of `signed_attrs.encode_verify()`.
+    pub fn null_scheme(msg: &[u8]) -> Self {
+        let digest = DigestAlgorithm::sha256().digest(msg);
+        PublicKey {
+            algorithm: PublicKeyFormat::NullSchemeSha256,
+            bits: BitString::new(0, Bytes::from(digest.as_ref().to_vec()))
+        }
+    }
+
     /// Returns the algorithm of this public key.
     pub fn algorithm(&self) -> PublicKeyFormat {
         self.algorithm
@@ -247,13 +292,14 @@ impl PublicKey {
         self.bits.octet_bytes()
     }
 
-    /// Returns whether the key is acceptable for RPKI-internal certificates.
-    ///
-    /// RPKI-internal certificates in this context are those used within the
-    /// repository itself, i.e., CA certificates and EE certificates for
-    /// signed objects.
-    pub fn allow_rpki_cert(&self) -> bool {
-        self.algorithm.allow_rpki_cert()
+    /// Returns whether the key is acceptable for RPKI-internal CA certificates.
+    pub fn allow_rpki_ca_cert(&self) -> bool {
+        self.algorithm.allow_rpki_ca_cert()
+    }
+
+    /// Returns whether the key is acceptable for RPKI-internal EE certificates.
+    pub fn allow_rpki_ee_cert(&self) -> bool {
+        self.algorithm.allow_rpki_ee_cert()
     }
 
     /// Returns whether the key is acceptable for BGPSec router certificates.

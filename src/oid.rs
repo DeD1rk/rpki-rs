@@ -43,6 +43,9 @@ pub const ECDSA_WITH_SHA256: ConstOid
 /// Identifies the P-256 curve for elliptic curve cryptography.
 pub const SECP256R1: ConstOid = Oid(&[42, 134, 72, 206, 61, 3, 1, 7]);
 
+/// Temporary OID for the RPKI null scheme signature algorithm and public key format to be used with SHA256.
+pub const NULL_SCHEME_WITH_SHA256: ConstOid
+    = Oid(&[43,6,1,3,137,82]);
 
 pub const SIGNED_DATA: Oid<&[u8]>
     = Oid(&[42, 134, 72, 134, 247, 13, 1, 7, 2]);

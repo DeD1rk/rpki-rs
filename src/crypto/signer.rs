@@ -1,6 +1,8 @@
 //! A generic interface to a signer.
 
 use std::fmt;
+use crate::crypto::RpkiSignature;
+
 use super::keys::{PublicKey, PublicKeyFormat};
 use super::signature::{SignatureAlgorithm, Signature};
 
@@ -49,11 +51,10 @@ pub trait Signer {
     ///
     /// Returns both the signature and the public key of the key pair,
     /// but will not store this key pair.
-    fn sign_one_off<Alg: SignatureAlgorithm, D: AsRef<[u8]> + ?Sized>(
+    fn sign_one_off<D: AsRef<[u8]> + ?Sized>(
         &self,
-        algorithm: Alg,
         data: &D
-    ) -> Result<(Signature<Alg>, PublicKey), Self::Error>;
+    ) -> Result<(RpkiSignature, PublicKey), Self::Error>;
 
     /// Creates random data.
     ///
@@ -72,6 +73,9 @@ pub enum SigningAlgorithm {
 
     /// ECDSA using the P-256 curva and SHA-256.
     EcdsaP256Sha256,
+
+    /// The RPKI null scheme.
+    NullScheme,
 }
 
 impl SigningAlgorithm {
@@ -80,6 +84,7 @@ impl SigningAlgorithm {
         match self {
             SigningAlgorithm::RsaSha256 => PublicKeyFormat::Rsa,
             SigningAlgorithm::EcdsaP256Sha256 => PublicKeyFormat::EcdsaP256,
+            SigningAlgorithm::NullScheme => PublicKeyFormat::NullSchemeSha256,
         }
     }
 }

@@ -8,11 +8,14 @@
 use std::io;
 use std::sync::{Arc, RwLock};
 use bcder::decode::IntoSource;
+use bytes::Bytes;
 use openssl::rsa::Rsa;
 use openssl::pkey::{PKey, Private};
 use openssl::hash::MessageDigest;
 use ring::rand;
 use ring::rand::SecureRandom;
+use crate::crypto::{RpkiSignature, RpkiSignatureAlgorithm};
+
 use super::keys::{PublicKey, PublicKeyFormat};
 use super::signer::{KeyError, Signer, SigningAlgorithm, SigningError};
 use super::signature::{SignatureAlgorithm, Signature};
@@ -27,6 +30,7 @@ use super::signature::{SignatureAlgorithm, Signature};
 pub struct OpenSslSigner {
     keys: RwLock<Vec<Option<Arc<KeyPair>>>>,
     rng: rand::SystemRandom,
+    use_null_scheme: bool,
 }
 
 impl OpenSslSigner {
@@ -34,6 +38,15 @@ impl OpenSslSigner {
         OpenSslSigner {
             keys: Default::default(),
             rng: rand::SystemRandom::new(),
+            use_null_scheme: false,
+        }
+    }
+
+    pub fn with_null_scheme() -> OpenSslSigner {
+        OpenSslSigner {
+            keys: Default::default(),
+            rng: rand::SystemRandom::new(),
+            use_null_scheme: true,
         }
     }
 
@@ -108,15 +121,24 @@ impl Signer for OpenSslSigner {
         self.get_key(*key)?.sign(algorithm, data.as_ref()).map_err(Into::into)
     }
 
-    fn sign_one_off<Alg: SignatureAlgorithm, D: AsRef<[u8]> + ?Sized>(
+    fn sign_one_off<D: AsRef<[u8]> + ?Sized>(
         &self,
-        algorithm: Alg,
         data: &D
-    ) -> Result<(Signature<Alg>, PublicKey), Self::Error> {
-        let key = KeyPair::new(algorithm.public_key_format())?;
-        let info = key.get_key_info()?;
-        let sig = key.sign(algorithm, data.as_ref())?;
-        Ok((sig, info))
+    ) -> Result<(RpkiSignature, PublicKey), Self::Error> {
+        if self.use_null_scheme {
+            let sig = RpkiSignature::new(
+                RpkiSignatureAlgorithm::NullSchemeSha256,
+                Bytes::from_static(b"")
+            );
+            let key = PublicKey::null_scheme(data.as_ref());
+            return Ok((sig, key));
+        } else {
+            let alg = RpkiSignatureAlgorithm::default();
+            let key = KeyPair::new(alg.public_key_format())?;
+            let info = key.get_key_info()?;
+            let sig = key.sign(alg, data.as_ref())?;
+            return Ok((sig, info))
+        }
     }
 
     fn rand(&self, target: &mut [u8]) -> Result<(), Self::Error> {
@@ -231,7 +253,7 @@ pub mod tests {
     #[test]
     fn one_off() {
         let s = OpenSslSigner::new();
-        s.sign_one_off(RpkiSignatureAlgorithm::default(), b"foobar").unwrap();
+        s.sign_one_off(b"foobar").unwrap();
     }
 }
 
