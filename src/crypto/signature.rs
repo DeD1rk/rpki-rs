@@ -207,7 +207,7 @@ impl SignatureAlgorithm for RpkiSignatureAlgorithm {
     fn signing_algorithm(&self) -> SigningAlgorithm {
         match *self {
             RpkiSignatureAlgorithm::RsaSha256 { .. } => SigningAlgorithm::RsaSha256,
-            RpkiSignatureAlgorithm::NullSchemeSha256 => SigningAlgorithm::NullScheme,
+            RpkiSignatureAlgorithm::NullSchemeSha256 => SigningAlgorithm::NullSchemeSha256,
         }
     }
 

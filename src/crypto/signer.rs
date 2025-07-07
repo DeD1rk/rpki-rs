@@ -74,8 +74,8 @@ pub enum SigningAlgorithm {
     /// ECDSA using the P-256 curva and SHA-256.
     EcdsaP256Sha256,
 
-    /// The RPKI null scheme.
-    NullScheme,
+    /// The RPKI null scheme with SHA-256.
+    NullSchemeSha256,
 }
 
 impl SigningAlgorithm {
@@ -84,7 +84,7 @@ impl SigningAlgorithm {
         match self {
             SigningAlgorithm::RsaSha256 => PublicKeyFormat::Rsa,
             SigningAlgorithm::EcdsaP256Sha256 => PublicKeyFormat::EcdsaP256,
-            SigningAlgorithm::NullScheme => PublicKeyFormat::NullSchemeSha256,
+            SigningAlgorithm::NullSchemeSha256 => PublicKeyFormat::NullSchemeSha256,
         }
     }
 }

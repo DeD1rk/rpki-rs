@@ -1124,6 +1124,50 @@ mod signer_test {
         ).unwrap();
         sigobj.validate(&cert, true).unwrap();
     }
+
+    #[test]
+    fn encode_null_scheme_signed_object() {
+        let signer = OpenSslSigner::with_null_scheme();
+        let key = signer.create_key(PublicKeyFormat::Rsa).unwrap();
+        let pubkey = signer.get_key_info(&key).unwrap();
+        let uri = uri::Rsync::from_str("rsync://example.com/m/p").unwrap();
+
+        let mut cert = TbsCert::new(
+            12u64.into(), pubkey.to_subject_name(),
+            Validity::from_secs(86400), None, pubkey, KeyUsage::Ca,
+            Overclaim::Trim
+        );
+        cert.set_basic_ca(Some(true));
+        cert.set_ca_repository(Some(uri.clone()));
+        cert.set_rpki_manifest(Some(uri.clone()));
+        cert.build_v4_resource_blocks(|b| b.push(Prefix::new(0, 0)));
+        cert.build_v6_resource_blocks(|b| b.push(Prefix::new(0, 0)));
+        cert.build_as_resource_blocks(|b| b.push((Asn::MIN, Asn::MAX)));
+        let cert = cert.into_cert(&signer, &key).unwrap();
+
+        let mut sigobj = SignedObjectBuilder::new(
+            12u64.into(), Validity::from_secs(86400), uri.clone(),
+            uri.clone(), uri
+        );
+        sigobj.set_v4_resources_inherit();
+        let sigobj = sigobj.finalize(
+            Oid(oid::SIGNED_DATA.0.into()),
+            Bytes::from(b"1234".as_ref()),
+            &signer,
+            &key,
+        ).unwrap();
+        let sigobj = sigobj.encode_ref().to_captured(Mode::Der);
+
+        let objdata = sigobj.as_slice();
+
+        println!("Created signed object with null scheme: {:x?}", objdata);
+
+        let sigobj = SignedObject::decode(sigobj.as_slice(), true).unwrap();
+        let cert = cert.validate_ta(
+            TalInfo::from_name("foo".into()).into_arc(), true
+        ).unwrap();
+        sigobj.validate(&cert, true).unwrap();
+    }
 }
 
 
