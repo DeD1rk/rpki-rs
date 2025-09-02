@@ -251,9 +251,9 @@ impl SignedObject {
                 "Subject Key Identifier mismatch in signed object"
             ))
         }
-        // Nothing specific is needed for the null scheme here. Null scheme signatures
+        // Nothing specific is needed for the Null Scheme here. Null scheme signatures
         // are allowed as any other RpkiSignatureAlgorithm, and they'll only validate
-        // if the EE certificate also has a null scheme public key.
+        // if the EE certificate also has a Null Scheme public key.
         Ok(())
     }
 
@@ -274,7 +274,7 @@ impl SignedObject {
             ))
         }
         let msg = self.signed_attrs.encode_verify();
-        // This needs to handle verification of the null scheme signature as if 
+        // This needs to handle verification of the Null Scheme signature as if 
         // it's a normal signature. So the code doesn't change here.
         self.cert.subject_public_key_info().verify(
             &msg,
@@ -1160,7 +1160,7 @@ mod signer_test {
 
         let objdata = sigobj.as_slice();
 
-        println!("Created signed object with null scheme: {:x?}", objdata);
+        println!("Created signed object with Null Scheme: {:x?}", objdata);
 
         let sigobj = SignedObject::decode(sigobj.as_slice(), true).unwrap();
         let cert = cert.validate_ta(

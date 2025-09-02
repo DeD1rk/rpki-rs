@@ -63,7 +63,7 @@ pub enum RpkiSignatureAlgorithm {
         /// Constructed values will always have this set to `true`.
         has_parameter: bool
     },
-    NullSchemeSha256,
+    RpkiNullScheme,
 }
 
 /// # ASN.1 Values
@@ -113,8 +113,8 @@ impl RpkiSignatureAlgorithm {
                 Tag::NULL, |_| Ok(())
             )?.is_some();
             Ok(RpkiSignatureAlgorithm::RsaSha256 { has_parameter } )
-        } else if oid == oid::NULL_SCHEME_WITH_SHA256 {
-            Ok(RpkiSignatureAlgorithm::NullSchemeSha256)
+        } else if oid == oid::RPKI_NULL_SCHEME {
+            Ok(RpkiSignatureAlgorithm::RpkiNullScheme)
         } else {
             Err(cons.content_err("invalid signature algorithm"))
         }
@@ -144,9 +144,9 @@ impl RpkiSignatureAlgorithm {
                 Tag::NULL, |_| Ok(())
             )?.is_some();
             Ok(RpkiSignatureAlgorithm::RsaSha256 { has_parameter })
-        } else if oid == oid::NULL_SCHEME_WITH_SHA256 {
-            // We define the null scheme to have no parameter, not a NULL parameter.
-            Ok(RpkiSignatureAlgorithm::NullSchemeSha256)    
+        } else if oid == oid::RPKI_NULL_SCHEME {
+            // We define the Null Scheme to have no parameter, not a NULL parameter.
+            Ok(RpkiSignatureAlgorithm::RpkiNullScheme)    
         } else {
             Err(cons.content_err("invalid signature algorithm"))
         }
@@ -155,15 +155,15 @@ impl RpkiSignatureAlgorithm {
     /// Provides an encoder for X.509 objects.
     /// 
     /// Returns a choice of very similar types that are not exactly the same because
-    /// for the null scheme we do not include a NULL parameter.
+    /// for the Null Scheme we do not include a NULL parameter.
     pub fn x509_encode(&self) -> impl encode::Values {
         match self {
             RpkiSignatureAlgorithm::RsaSha256 { .. } => encode::Choice2::One(encode::sequence((
                 oid::SHA256_WITH_RSA_ENCRYPTION.encode(),
                 ().encode(),
             ))),
-            RpkiSignatureAlgorithm::NullSchemeSha256 => encode::Choice2::Two(encode::sequence((
-                oid::NULL_SCHEME_WITH_SHA256.encode(),
+            RpkiSignatureAlgorithm::RpkiNullScheme => encode::Choice2::Two(encode::sequence((
+                oid::RPKI_NULL_SCHEME.encode(),
             ))),
         }
     }
@@ -171,7 +171,7 @@ impl RpkiSignatureAlgorithm {
     /// Provides an encoder for CMS objects.
     /// 
     /// Returns a choice of very similar types that are not exactly the same because
-    /// for the null scheme we do not include a NULL parameter.
+    /// for the Null Scheme we do not include a NULL parameter.
     pub fn cms_encode(self) -> impl encode::Values {
 
         match self {
@@ -179,8 +179,8 @@ impl RpkiSignatureAlgorithm {
                 oid::RSA_ENCRYPTION.encode(),
                 ().encode(),
             ))),
-            RpkiSignatureAlgorithm::NullSchemeSha256 => encode::Choice2::Two(encode::sequence((
-                oid::NULL_SCHEME_WITH_SHA256.encode(),
+            RpkiSignatureAlgorithm::RpkiNullScheme => encode::Choice2::Two(encode::sequence((
+                oid::RPKI_NULL_SCHEME.encode(),
             ))),
         }
     }
@@ -207,7 +207,7 @@ impl SignatureAlgorithm for RpkiSignatureAlgorithm {
     fn signing_algorithm(&self) -> SigningAlgorithm {
         match *self {
             RpkiSignatureAlgorithm::RsaSha256 { .. } => SigningAlgorithm::RsaSha256,
-            RpkiSignatureAlgorithm::NullSchemeSha256 => SigningAlgorithm::NullSchemeSha256,
+            RpkiSignatureAlgorithm::RpkiNullScheme => SigningAlgorithm::RpkiNullScheme,
         }
     }
 
@@ -225,10 +225,10 @@ impl SignatureAlgorithm for RpkiSignatureAlgorithm {
                     (oid::SHA256_WITH_RSA_ENCRYPTION.encode(), ().encode()),
                 ),
             ),
-            RpkiSignatureAlgorithm::NullSchemeSha256 => encode::Choice2::Two(
+            RpkiSignatureAlgorithm::RpkiNullScheme => encode::Choice2::Two(
                 encode::Constructed::new( 
                     Tag::SEQUENCE, 
-                    (oid::NULL_SCHEME_WITH_SHA256.encode(),),
+                    (oid::RPKI_NULL_SCHEME.encode(),),
                 ),
             ),
         }

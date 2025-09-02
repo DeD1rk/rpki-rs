@@ -804,7 +804,7 @@ impl Cert {
         // 4.6 Validity. Checked during verification.
 
         // 4.7 Subject Public Key Info: limited algorithms.
-        // With the null scheme, this differs between CA and EE certs, so is checked in
+        // With the Null Scheme, this differs between CA and EE certs, so is checked in
         // inspect_ca_basics() and inspect_ee().
 
         // 4.8.1. Basic Constraints. Differing requirements for CA and EE

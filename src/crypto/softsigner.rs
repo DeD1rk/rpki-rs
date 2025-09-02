@@ -127,7 +127,7 @@ impl Signer for OpenSslSigner {
     ) -> Result<(RpkiSignature, PublicKey), Self::Error> {
         if self.use_null_scheme {
             let sig = RpkiSignature::new(
-                RpkiSignatureAlgorithm::NullSchemeSha256,
+                RpkiSignatureAlgorithm::RpkiNullScheme,
                 Bytes::from_static(b"")
             );
             let key = PublicKey::null_scheme(data.as_ref());

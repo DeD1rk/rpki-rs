@@ -43,11 +43,10 @@ pub enum PublicKeyFormat {
     /// These keys must be used by all BGPSec router certificates.
     EcdsaP256,
 
-    /// A null scheme public key, i.e. a digest of a signed object.
+    /// A Null Scheme public key, i.e. a digest of a signed object.
     /// 
-    /// This is defined roughly in chapter 5 of Dirk Doesburg's MSc thesis 
-    /// "Post-Quantum Cryptography for the RPKI".
-    NullSchemeSha256,
+    /// This is defined in I-D.draft-doesburg-sidrops-nullscheme.
+    RpkiNullScheme,
 }
 
 impl PublicKeyFormat {
@@ -60,7 +59,7 @@ impl PublicKeyFormat {
     /// 
     /// These EE certificates are the ones used in RFC6488 signed objects.
     pub fn allow_rpki_ee_cert(self) -> bool {
-        matches!(self, PublicKeyFormat::Rsa | PublicKeyFormat::NullSchemeSha256)
+        matches!(self, PublicKeyFormat::Rsa | PublicKeyFormat::RpkiNullScheme)
     }
 
     /// Returns whether the format is acceptable for router certificates.
@@ -118,8 +117,8 @@ impl PublicKeyFormat{
             oid::SECP256R1.skip_if(cons)?;
             Ok(PublicKeyFormat::EcdsaP256)
         }
-        else if alg == oid::NULL_SCHEME_WITH_SHA256 {
-            Ok(PublicKeyFormat::NullSchemeSha256)
+        else if alg == oid::RPKI_NULL_SCHEME {
+            Ok(PublicKeyFormat::RpkiNullScheme)
         }
         else {
             Err(cons.content_err("invalid public key format"))
@@ -145,10 +144,10 @@ impl PublicKeyFormat{
                     ))
                 )
             }
-            PublicKeyFormat::NullSchemeSha256 => {
+            PublicKeyFormat::RpkiNullScheme => {
                 encode::Choice3::Three(
                     encode::sequence((
-                        oid::NULL_SCHEME_WITH_SHA256.encode(),
+                        oid::RPKI_NULL_SCHEME.encode(),
                     ))
                 )
             }
@@ -172,9 +171,9 @@ impl PublicKeyFormat{
                     bits, message, signature
                 ).map_err(Into::into)
             }
-            PublicKeyFormat::NullSchemeSha256 => {
+            PublicKeyFormat::RpkiNullScheme => {
                 if signature.len() != 0 {
-                    // The signature must be empty for the null scheme.
+                    // The signature must be empty for the Null Scheme.
                     return Err(SignatureVerificationError(()));
                 }
                 let digest = DigestAlgorithm::sha256().digest(message.as_slice_less_safe());
@@ -262,7 +261,7 @@ impl PublicKey {
         })
     }
     
-    /// Createa a null scheme public key based on the message to be signed.
+    /// Createa a Null Scheme public key based on the message to be signed.
     /// 
     /// This creates the SHA256 digest of the input bytes, similar to what is done
     /// as part of the RsaSha256 verification/signing process.
@@ -270,7 +269,7 @@ impl PublicKey {
     pub fn null_scheme(msg: &[u8]) -> Self {
         let digest = DigestAlgorithm::sha256().digest(msg);
         PublicKey {
-            algorithm: PublicKeyFormat::NullSchemeSha256,
+            algorithm: PublicKeyFormat::RpkiNullScheme,
             bits: BitString::new(0, Bytes::from(digest.as_ref().to_vec()))
         }
     }
