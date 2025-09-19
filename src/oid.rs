@@ -45,7 +45,7 @@ pub const SECP256R1: ConstOid = Oid(&[42, 134, 72, 206, 61, 3, 1, 7]);
 
 /// Temporary OID for the RPKI Null Scheme signature algorithm and public key format.
 pub const RPKI_NULL_SCHEME: ConstOid
-    = Oid(&[43,6,1,5,5,7,6,37]);
+    = Oid(&[43,6,1,4,1,131,245,113,1,1]);
 
 pub const SIGNED_DATA: Oid<&[u8]>
     = Oid(&[42, 134, 72, 134, 247, 13, 1, 7, 2]);
